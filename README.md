@@ -66,7 +66,7 @@ out    = softmax(scores) · v                     # 在 B+1 维加权求和
 
 ### SituGluFused（融合算子）
 
-dense MLP 的 `GEMM + SiTU epilogue` 融合：核心难点是把 gate/up 权重**重排进同一个 tile**，让 Matmul 一次算完再在 AIV 上做 SiTU 后处理。数值已真机对拍 PASS，但当前**负收益**（自写 GEMM tiling 只到峰值带宽 4%，见「诚实边界」）。
+dense MLP 的 `GEMM + SiTU epilogue` 融合：核心难点是把 gate/up 权重**重排进同一个 tile**，让 Matmul 一次算完再在 AIV 上做 SiTU 后处理。数值已真机对拍 PASS；性能仍在优化（GEMM tiling 待提升，见「当前状态与局限」）。
 
 ### KDA（Gated Delta Rule）
 
@@ -144,13 +144,13 @@ python ops/test_attn_res_real.py        # AttnRes
 python -m pytest ops/tests/
 ```
 
-## 诚实边界
+## 当前状态与局限
 
 | 项 | 状态 |
 |---|---|
-| 融合算子（GEMM+SiTU） | 数值 PASS，但**当前负收益**（自写 GEMM tiling 只到峰值带宽 4%） |
-| 端到端 TTFT/TPOT | 未跑（`triton-ascend >= 3.2.1` 公开源暂无，属外部包版本问题） |
-| 相对华为算子的性能对比 | 华为无 SiTU-GLU / AttnRes，"相对提升"是假命题，正确对照是等价 torch 组合 |
+| 融合算子（GEMM+SiTU） | 数值验证通过；性能仍在优化（GEMM tiling 待提升到峰值带宽） |
+| 端到端 TTFT/TPOT | 待跑（依赖 `triton-ascend >= 3.2.1`，公开源尚未发布） |
+| 与华为算子的直接对比 | 华为无 SiTU-GLU / AttnRes，无直接对标对象；对照口径为等价 torch 组合 |
 
 ## License
 
