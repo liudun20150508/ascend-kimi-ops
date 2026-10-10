@@ -1,0 +1,40 @@
+[
+  {
+    "op": "AttnRes",
+    "input_desc": [
+      {
+        "name": "block_residual",
+        "param_type": "required",
+        "format": ["ND"],
+        "type": ["bf16"]
+      },
+      {
+        "name": "prefix_sum",
+        "param_type": "required",
+        "format": ["ND"],
+        "type": ["bf16"]
+      },
+      {
+        "name": "score_weight",
+        "param_type": "required",
+        "format": ["ND"],
+        "type": ["bf16"]
+      }
+    ],
+    "output_desc": [
+      {
+        "name": "out",
+        "param_type": "required",
+        "format": ["ND"],
+        "type": ["bf16"]
+      }
+    ],
+    "attr": [
+      {
+        "name": "eps",
+        "param_type": "required",
+        "type": "float"
+      }
+    ]
+  }
+]
