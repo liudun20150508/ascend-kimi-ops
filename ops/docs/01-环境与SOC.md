@@ -13,7 +13,24 @@
 
 ## 运行 harness 的外部依赖
 
-`test_situ_real.py` / `test_attn_res_real.py` 用 `torch.utils.cpp_extension.load` JIT 编译 wrapper，wrapper 里 `#include "aclnn_common.h"`（提供 `ACLNN_CMD` 宏）。这个头来自 **ops-transformer** 仓库（`torch_extension/cann_ops_transformer/common/inc/aclnn_common.h`），**不是** torch_npu 自带的。运行前把该 include 路径和 wrapper 源文件路径改成本机实际位置即可（脚本里 `pkg_path` 和 `src` 两个变量）。昇腾团队本就有 ops-transformer，按此对齐路径即可。
+`aclnn_ops.py`（三个算子共用的运行时；harness 与接入层都从它调）用 `torch.utils.cpp_extension.load` JIT 编译 wrapper，wrapper 里 `#include "aclnn_common.h"`（提供 `ACLNN_CMD` 宏）。这个头来自 **ops-transformer** 仓库（`torch_extension/cann_ops_transformer/common/inc/aclnn_common.h`），**不是** torch_npu 自带的。
+
+**路径已参数化，换机器不用改代码**（原来是写死的绝对路径）：
+
+| 环境变量 | 作用 | 默认值 |
+|---|---|---|
+| `ASCEND_HOME_PATH` | CANN 安装目录 | `/usr/local/Ascend/cann-9.0.0` |
+| `OPS_TRANSFORMER_PKG` | **ops-transformer 的包路径（换机器必设这一条）** | `/tmp/ops-transformer/torch_extension/cann_ops_transformer` |
+| `KIMI3_VENDOR` | 三个算子**共用**的自定义算子安装目录（优先于下面那些单算子变量） | —— |
+| `SITU_VENDOR` / `ATTNRES_VENDOR` / `SGF_VENDOR` | 单算子的自定义算子安装目录（覆盖） | `$ASCEND_HOME_PATH/opp/vendors/customize` |
+| `SITU_WRAPPER_SRC` / `ATTNRES_WRAPPER_SRC` / `SGF_WRAPPER_SRC` | wrapper 源文件 | 仓库根目录下那份 |
+
+```bash
+# 换机器时先找到 aclnn_common.h，把它的父级两层填进 OPS_TRANSFORMER_PKG
+export OPS_TRANSFORMER_PKG=$(dirname $(dirname $(find / -name aclnn_common.h 2>/dev/null | head -1)))/..
+# 上机前跑一遍环境体检（会自动找 aclnn_common.h 并报 SOC）
+bash scripts/preflight_check.sh
+```
 
 ## 环境信息
 

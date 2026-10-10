@@ -10,58 +10,27 @@
 import os
 import sys
 
-sys.path.insert(0, "/workspace/kimi3_ops")
+# 不写死绝对路径：本文件所在目录就是包根，跨机器（A2/A3）不用改代码
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _HERE)
 
 import torch
 import torch_npu
-from torch.utils.cpp_extension import load
-
 from reference.situ import situ_and_mul as situ_golden
 
-VENDOR = "/usr/local/Ascend/cann-9.0.0/opp/vendors/customize"
+# ★ 算子的 JIT 包装 + 路径解析统一在 aclnn_ops.py（唯一实现）——
+#   接入层 integration/torch_ops_kimi3.py 与本 harness 都从那里调，本文件退回「只当测试」。
+import aclnn_ops
 
-# 自定义算子的环境（等价于 source set_env.bash）
-os.environ["ASCEND_CUSTOM_OPP_PATH"] = VENDOR + ":" + os.environ.get("ASCEND_CUSTOM_OPP_PATH", "")
-os.environ["LD_LIBRARY_PATH"] = VENDOR + "/op_api/lib:" + os.environ.get("LD_LIBRARY_PATH", "")
-
-_OP = None
-
-
-def _build():
-    global _OP
-    if _OP is not None:
-        return _OP
-    cann_path = os.environ.get("ASCEND_HOME_PATH", "/usr/local/Ascend/cann-9.0.0")
-    tn_path = os.path.dirname(os.path.abspath(torch_npu.__file__))
-    src = "/workspace/kimi3_ops/situ_and_mul_wrapper.cpp"
-    pkg_path = "/tmp/ops-transformer/torch_extension/cann_ops_transformer"
-    abi = 1 if torch.compiled_with_cxx11_abi() else 0
-    _OP = load(
-        name="situ_and_mul_op",
-        sources=[src],
-        extra_include_paths=[
-            os.path.join(tn_path, "include"),
-            os.path.join(tn_path, "include/third_party/hccl/inc"),
-            os.path.join(tn_path, "include/third_party/acl/inc"),
-            os.path.join(cann_path, "include"),
-            os.path.join(pkg_path, "common/inc"),
-            os.path.join(VENDOR, "op_api/include"),
-        ],
-        extra_cflags=[
-            "-fPIC", "-O2", "-w", f"-D_GLIBCXX_USE_CXX11_ABI={abi}",
-        ],
-        extra_ldflags=[
-            "-L" + os.path.join(cann_path, "lib64"), "-lascendcl",
-            "-L" + os.path.join(tn_path, "lib"), "-ltorch_npu",
-            "-L" + os.path.join(VENDOR, "op_api/lib"), "-lcust_opapi",
-        ],
-        verbose=False,
-    )
-    return _OP
+# 兼容保留：这几个常量原先在本文件里定义（可能有外部引用），口径以 aclnn_ops 为准
+CANN_PATH = aclnn_ops.CANN_PATH
+VENDOR = aclnn_ops.vendor_dir("situ_and_mul")
+WRAPPER_SRC = aclnn_ops.wrapper_src("situ_and_mul")
+PKG_PATH = aclnn_ops.PKG_PATH
 
 
 def run_real(x, beta, linear_beta):
-    return _build().situ_and_mul(x, float(beta), float(linear_beta))
+    return aclnn_ops.situ_and_mul(x, beta, linear_beta)
 
 
 def check(shape, beta=4.0, linear_beta=25.0, seed=0):

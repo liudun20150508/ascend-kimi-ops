@@ -3,54 +3,26 @@
 import os
 import sys
 
-sys.path.insert(0, "/workspace/kimi3_ops")
+# 不写死绝对路径（与 test_situ_real.py 同一套约定，换机器只设环境变量）
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _HERE)
 
 import torch
 import torch_npu
-from torch.utils.cpp_extension import load
-
 from reference.attn_res import attn_res as attn_res_golden
 
-VENDOR = "/usr/local/Ascend/cann-9.0.0/opp/vendors/customize"
-os.environ["ASCEND_CUSTOM_OPP_PATH"] = VENDOR + ":" + os.environ.get("ASCEND_CUSTOM_OPP_PATH", "")
-os.environ["LD_LIBRARY_PATH"] = VENDOR + "/op_api/lib:" + os.environ.get("LD_LIBRARY_PATH", "")
+# ★ 算子的 JIT 包装 + 路径解析统一在 aclnn_ops.py（唯一实现）
+import aclnn_ops
 
-_OP = None
-
-
-def _build():
-    global _OP
-    if _OP is not None:
-        return _OP
-    cann = os.environ.get("ASCEND_HOME_PATH", "/usr/local/Ascend/cann-9.0.0")
-    tn = os.path.dirname(os.path.abspath(torch_npu.__file__))
-    src = "/workspace/kimi3_ops/attn_res_wrapper.cpp"
-    pkg = "/tmp/ops-transformer/torch_extension/cann_ops_transformer"
-    abi = 1 if torch.compiled_with_cxx11_abi() else 0
-    _OP = load(
-        name="attn_res_op",
-        sources=[src],
-        extra_include_paths=[
-            os.path.join(tn, "include"),
-            os.path.join(tn, "include/third_party/hccl/inc"),
-            os.path.join(tn, "include/third_party/acl/inc"),
-            os.path.join(cann, "include"),
-            os.path.join(pkg, "common/inc"),
-            os.path.join(VENDOR, "op_api/include"),
-        ],
-        extra_cflags=["-fPIC", "-O2", "-w", f"-D_GLIBCXX_USE_CXX11_ABI={abi}"],
-        extra_ldflags=[
-            "-L" + os.path.join(cann, "lib64"), "-lascendcl",
-            "-L" + os.path.join(tn, "lib"), "-ltorch_npu",
-            "-L" + os.path.join(VENDOR, "op_api/lib"), "-lcust_opapi",
-        ],
-        verbose=False,
-    )
-    return _OP
+# 兼容保留：这几个常量原先在本文件里定义（可能有外部引用），口径以 aclnn_ops 为准
+CANN_PATH = aclnn_ops.CANN_PATH
+VENDOR = aclnn_ops.vendor_dir("attn_res")
+WRAPPER_SRC = aclnn_ops.wrapper_src("attn_res")
+PKG_PATH = aclnn_ops.PKG_PATH
 
 
 def run_real(br, ps, sw, eps):
-    return _build().attn_res(br, ps, sw, float(eps))
+    return aclnn_ops.attn_res(br, ps, sw, eps)
 
 
 def check(T, B, H, seed=0, eps=1e-6):

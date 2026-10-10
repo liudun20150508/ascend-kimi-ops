@@ -20,11 +20,16 @@
 #include <cstdint>
 
 struct SituAndMulTilingData {
-    uint32_t d;          // 切分维：输出最后一维 = 输入最后一维 / 2
-    uint32_t numRows;    // 行数 = 输入除最后一维外各维乘积
-    uint32_t blockDim;   // 参与计算的核心数
-    float beta;          // activation_situ_beta
-    float linear_beta;   // activation_situ_linear_beta
+    uint32_t d;              // 切分维：输出最后一维 = 输入最后一维 / 2
+    uint32_t numRows;        // 行数 = 输入除最后一维外各维乘积
+    uint32_t blockDim;       // 参与计算的核心数（= AIV 核数，host 端查询）
+    uint32_t tileElem;       // d 维分块长度（host 端按 UB 容量算出，不再硬编码）
+    uint32_t tilesPerRow;    // = ceil(d / tileElem)
+    uint32_t totalTiles;     // = numRows * tilesPerRow（按 tile 均分给各核，解决行粒度不均）
+    float beta;              // activation_situ_beta
+    float linear_beta;       // activation_situ_linear_beta
+    float invBeta;           // 1/beta，host 端算好（aicore 上 uint->float cast 受限）
+    float invLinearBeta;     // 1/linear_beta
 };
 
 #endif // SITU_AND_MUL_TILING_H

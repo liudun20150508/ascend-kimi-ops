@@ -1,0 +1,40 @@
+[
+  {
+    "op": "SituGluFused",
+    "input_desc": [
+      {
+        "name": "x",
+        "param_type": "required",
+        "format": ["ND"],
+        "type": ["bf16"]
+      },
+      {
+        "name": "weight",
+        "param_type": "required",
+        "format": ["ND"],
+        "type": ["bf16"]
+      }
+    ],
+    "output_desc": [
+      {
+        "name": "y",
+        "param_type": "required",
+        "format": ["ND"],
+        "type": ["bf16"]
+      }
+    ],
+    "attr": [
+      {
+        "name": "beta",
+        "param_type": "required",
+        "type": "float"
+      },
+      {
+        "name": "linear_beta",
+        "param_type": "optional",
+        "type": "float",
+        "default_value": 1.0
+      }
+    ]
+  }
+]

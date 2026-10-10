@@ -1,6 +1,8 @@
 
 #include "../op_kernel/attn_res_tiling.h"
 #include "register/op_def_registry.h"
+// PlatformAscendC：host 端查 AIV 核数（原来硬编码 blockDim=8，换 SOC 就废）
+#include "tiling/platform/platform_ascendc.h"
 
 
 namespace optiling {
@@ -14,7 +16,11 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context)
   tiling->T = static_cast<uint32_t>(br.GetDim(0));
   tiling->B = static_cast<uint32_t>(br.GetDim(1));
   tiling->H = static_cast<uint32_t>(br.GetDim(2));
-  tiling->blockDim = 8;
+
+  // 核数按实际 AIV 核数取，不再写死 8；T 少于核数时 kernel 内会自行退出
+  auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
+  uint32_t coreNum = ascendcPlatform.GetCoreNumAiv();
+  tiling->blockDim = (coreNum > 0) ? coreNum : 8;
 
   const gert::RuntimeAttrs* attrs = context->GetAttrs();
   tiling->eps = *attrs->GetFloat(0);
